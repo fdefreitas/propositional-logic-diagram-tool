@@ -14,6 +14,14 @@ export const segmentTarget: SegmentTarget = {
 				{
 					"segment": "594290d1e87847ed4b761e87",
 					"include": true
+				},
+				{
+					"segment": "594290cce87847ed4b761e7b",
+					"include": true
+				},
+				{
+					"segment": "594290d1e87847ed4b761e87",
+					"include": true
 				}
 			]
 		},
@@ -80,6 +88,18 @@ export const segmentTarget: SegmentTarget = {
 					"include": false
 				},
 				{
+					"segment": "5cdaa7ac8a70e311005c829f",
+					"include": false
+				},
+				{
+					"segment": "594290cce87847ed4b761e7b",
+					"include": true
+				},
+				{
+					"segment": "594290d1e87847ed4b761e87",
+					"include": true
+				},
+				{
 					"segment": "594290cce87847ed4b761e7b",
 					"include": true
 				},
@@ -96,6 +116,26 @@ export const segmentTarget: SegmentTarget = {
 				{
 					"segment": "5cdaa7ac8a70e311005c829f",
 					"include": false
+				},
+				{
+					"segment": "5cdaa7ac8a70e311005c829f",
+					"include": false
+				},
+				{
+					"segment": "5cdaa7ac8a70e311005c829f",
+					"include": false
+				},
+				{
+					"segment": "5cdaa7ac8a70e311005c829f",
+					"include": false
+				},
+				{
+					"segment": "594290cce87847ed4b761e7b",
+					"include": true
+				},
+				{
+					"segment": "594290d1e87847ed4b761e87",
+					"include": true
 				},
 				{
 					"segment": "594290cce87847ed4b761e7b",
