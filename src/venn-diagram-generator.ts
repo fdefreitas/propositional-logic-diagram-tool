@@ -50,7 +50,7 @@ export class VennDiagramGenerator {
 	}
 
 	private createCanvas(): void {
-		const rowSize = 2
+		const rowSize = 3
 		const groupsCount = this.segmentTargets.segment_groups.length
 		const maxSegments = this.segmentTargets.segment_groups.reduce((max, group) => {
 			if(group.segments.length > max) {
@@ -63,8 +63,8 @@ export class VennDiagramGenerator {
 		const circleRadius = circlePerimeter / (2 * Math.PI)
 		const circleDiameter = circleRadius * 2
 		const groupSize = circleDiameter
-		this.canvas.height = groupSize * (0.5 * groupsCount) + 64
-		this.canvas.width = (groupSize * rowSize) + 48
+		this.canvas.height = groupSize * (groupsCount / rowSize) + 80
+		this.canvas.width = (groupSize * rowSize) + 120
 		console.info('Circle Radius:', circleRadius)
 		console.info(`Canvas size: ${this.canvas.height}h x ${this.canvas.width}w`)
 
@@ -73,22 +73,22 @@ export class VennDiagramGenerator {
 		// context2d.transform(PIXEL_RATIO, 0, 0, PIXEL_RATIO, 0, 0)
 
 		for (let index = 0; index < this.segmentTargets.segment_groups.length; index = index + rowSize) {
-			const rowIndex = Math.abs(0.5 * index)
+			const rowIndex = Math.abs(index / rowSize)
 			for (let segmentIndex = index; segmentIndex < index + rowSize; segmentIndex++) {
 				const segmentGroup = this.segmentTargets.segment_groups[segmentIndex]
-				const result = this.createGroup(groupSize, segmentGroup, segmentIndex, rowIndex)
+				const result = this.createGroup(groupSize, segmentGroup, segmentIndex, rowIndex, rowSize)
 				this.shapesMap.push(result)	
 			}
 		}
 		console.log(this.shapesMap)
 	}
 
-	private createGroup(groupSize: number, group: SegmentGroup, index: number, rowIndex: number): GroupRectangle {
+	private createGroup(groupSize: number, group: SegmentGroup, index: number, rowIndex: number, rowSize: number): GroupRectangle {
 		console.group('group', index)
 		// 32 for 16px spacing each side
 		const rectSize = groupSize + 32
-		const rectX = (index + 1) % 2 === 0? rectSize : 0
-		const rectY = rectSize * rowIndex
+		const rectX = (index % rowSize) * rectSize
+		const rectY = ((index / rowSize) >> 0) * rectSize
 		const rectangle = this.drawRectangle(rectX, rectY, rectSize, index)
 
 		const circleRadius = 0.5 * groupSize
