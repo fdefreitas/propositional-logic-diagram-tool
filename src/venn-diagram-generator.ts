@@ -52,12 +52,28 @@ export class VennDiagramGenerator {
 	private createCanvas(): void {
 		const rowSize = 3
 		const groupsCount = this.segmentTargets.segment_groups.length
-		const maxSegments = this.segmentTargets.segment_groups.reduce((max, group) => {
-			if(group.segments.length > max) {
-				return group.segments.length
+		const { maxInclude, maxExclude } = this.segmentTargets.segment_groups.reduce((acc, group) => {
+			const includeSegments = group.segments.filter(segment => !!segment.include).length
+			const excludeSegments = group.segments.filter(segment => !segment.include).length
+			if(includeSegments > acc.maxInclude) {
+				acc.maxInclude = includeSegments
 			}
-			return max
-		}, 0)
+			if(excludeSegments > acc.maxExclude) {
+				acc.maxExclude = excludeSegments
+			}
+
+			return acc
+		}, {
+			maxInclude: 0,
+			maxExclude: 0
+		})
+
+		let maxSegments: number = 0
+		if(maxInclude && maxInclude > maxExclude) {
+			maxSegments = maxInclude
+		} else {
+			maxSegments = maxExclude
+		}
 
 		const circlePerimeter = (VennDiagramGenerator.SEGMENT_SIZE * VennDiagramGenerator.SEGMENT_SPACING) * maxSegments
 		const circleRadius = circlePerimeter / (2 * Math.PI)
@@ -73,60 +89,40 @@ export class VennDiagramGenerator {
 		// context2d.transform(PIXEL_RATIO, 0, 0, PIXEL_RATIO, 0, 0)
 
 		for (let index = 0; index < this.segmentTargets.segment_groups.length; index = index + rowSize) {
-			const rowIndex = Math.abs(index / rowSize)
 			for (let segmentIndex = index; segmentIndex < index + rowSize; segmentIndex++) {
 				const segmentGroup = this.segmentTargets.segment_groups[segmentIndex]
-				const result = this.createGroup(groupSize, segmentGroup, segmentIndex, rowIndex, rowSize)
+				const result = this.createGroup(groupSize, segmentGroup, segmentIndex, rowSize)
 				this.shapesMap.push(result)	
 			}
 		}
 		console.log(this.shapesMap)
 	}
 
-	private createGroup(groupSize: number, group: SegmentGroup, index: number, rowIndex: number, rowSize: number): GroupRectangle {
+	private createGroup(groupSize: number, group: SegmentGroup, index: number, rowSize: number): GroupRectangle {
 		console.group('group', index)
 		// 32 for 16px spacing each side
 		const rectSize = groupSize + 32
 		const rectX = (index % rowSize) * rectSize
 		const rectY = ((index / rowSize) >> 0) * rectSize
-		const rectangle = this.drawRectangle(rectX, rectY, rectSize, index)
+		const rectangle = this.drawGroupRectangle(rectX, rectY, rectSize, index, 'black', group.and)
 
-		const circleRadius = 0.5 * groupSize
+		const circleRadius = 0.3 * groupSize
 		const circleOriginX = rectX + (0.5 * rectSize)
 		const circleOriginY = rectY + (0.5 * rectSize)
-		this.drawOrigin(circleOriginX, circleOriginY)
+		this.drawOrigin(circleOriginX, circleOriginY, group.and? 'red': 'green')
 		let segments: any[] = []
 
-		if(group.and) {
-			const includes = group.segments.filter((segment) => !!segment.include)
-			if(includes.length) {
-				const includeRadius = 0.6 * circleRadius
-				const includeStyle = 'rgba(50, 205, 50, 0.6)'
-				segments = [...this.drawSegmentCircle(includes, includeRadius, includeStyle, circleOriginX, circleOriginY)]
-			} else {
-				this.drawCircle(circleOriginX, circleOriginY, circleRadius, 'rgba(50, 205, 50, 0.4)')
-			}
-
-			const excludes = group.segments.filter((segment) => !segment.include)
-			const excludeRadius = 0.2 * circleRadius
-			const excludeStyle = 'rgba(255, 69, 0, 0.6)'
-			segments = [segments, ...this.drawSegmentCircle(excludes, excludeRadius, excludeStyle, circleOriginX, circleOriginY)]
-
+		const includes = group.segments.filter((segment) => !!segment.include)
+		if(includes.length) {
+			segments = [...this.drawIncludeSegmentCircle(includes, circleRadius, circleOriginX, circleOriginY, group.and)]
 		} else {
-			const includes = group.segments.filter((segment) => !!segment.include)
-			if(includes.length) {
-				const includeRadius = 0.6 * circleRadius
-				const includeStyle = 'rgba(50, 205, 50, 0.6)'
-				segments = [...this.drawSegmentCircle(includes, includeRadius, includeStyle, circleOriginX, circleOriginY)]
-			} else {
-				// blue = 'rgba(173, 216, 230, 0.6)'
-				this.drawCircle(circleOriginX, circleOriginY, circleRadius, 'rgba(50, 205, 50, 0.4)')
-			}
-			const excludes = group.segments.filter((segment) => !segment.include)
-			const excludeRadius = 0.2 * circleRadius
-			const excludeStyle = 'rgba(255, 69, 0, 0.6)'
-			segments = [segments, ...this.drawSegmentCircle(excludes, excludeRadius, excludeStyle, circleOriginX, circleOriginY)]
+			const universeX = rectX + (0.5 * circleRadius)
+			const universeY = rectY + (0.5 * circleRadius)
+			this.drawRectangle(universeX, universeY, rectSize * 0.75, 'rgba(135, 206, 235, 0.8)', 'rgba(135, 206, 235, 0.8)')
 		}
+
+		const excludes = group.segments.filter((segment) => !segment.include)
+		segments = [segments, ...this.drawExcludeSegmentCircle(excludes, circleRadius, circleOriginX, circleOriginY, group.and)]
 
 		console.groupEnd()
 
@@ -138,11 +134,10 @@ export class VennDiagramGenerator {
 		}
 	}
 
-	private calculateGroupCoordinates(radius: number, angle: number, index: number, cx: number, cy: number): Coordinates {
-		const theta = this.degreesToRadians(angle * (index + 1))
+	private calculateGroupCoordinates(radius: number, angle: number, index: number, cx: number, cy: number, offset: number = 0): Coordinates {
+		const theta = offset + this.degreesToRadians(angle * (index + 1))
 
 		const result = this.polarToCartesian(radius, theta, cx, cy)
-		console.log('index', index, 'radius', radius, 'theta', theta, result, cx, cy)
 		return result
 	}
 
@@ -160,17 +155,32 @@ export class VennDiagramGenerator {
 		}
 	}
 
-	private drawOrigin(cx: number, cy: number): void {
+	private drawOrigin(cx: number, cy: number, style: string = 'black'): void {
 		if(!this.ctx) {
 			return
 		}
 
-		this.drawCircle(cx, cy, 2, 'black')
+		this.drawCircle(cx, cy, 2, style)
 	}
 
-	private drawSegmentCircle(segments: Segment[], radius: number, style: string, cx: number, cy: number): SegmentCircle[] {
-		const ctx = this.ctx as CanvasRenderingContext2D
+	private drawIncludeSegmentCircle(segments: Segment[], circleRadius: number, cx: number, cy: number, and?: boolean): SegmentCircle[] {
+		const includeStyle = and? 'rgba(50, 205, 50, 0.4)' : 'rgba(50, 205, 50, 0.8)'
+		const includeRadius = and? 0.5 * circleRadius : circleRadius
+		const segmentRadius = and? 3 * VennDiagramGenerator.SEGMENT_SIZE : 0.5 * VennDiagramGenerator.SEGMENT_SIZE
+		
+		return this.drawSegmentCircle(segments, includeRadius, includeStyle, cx, cy, segmentRadius)
+	}
+
+	private drawExcludeSegmentCircle(segments: Segment[], circleRadius: number, cx: number, cy: number, and?: boolean): SegmentCircle[] {
+		const excludeStyle = 'rgba(255, 69, 0, 0.6)'
+		const excludeRadius = and? 0.1 * circleRadius : 0.3 * circleRadius
 		const segmentRadius = 0.5 * VennDiagramGenerator.SEGMENT_SIZE
+
+		return this.drawSegmentCircle(segments, excludeRadius, excludeStyle, cx, cy, segmentRadius)
+	}
+
+	private drawSegmentCircle(segments: Segment[], groupRadius: number, style: string, cx: number, cy: number, segmentRadius: number, offset: number = 0): SegmentCircle[] {
+		const ctx = this.ctx as CanvasRenderingContext2D
 		const angle = 360 / segments.length
 
 		return segments.map((segment, index) => {
@@ -178,13 +188,13 @@ export class VennDiagramGenerator {
 
 			ctx.fillStyle = style
 
-			let { x, y } = this.calculateGroupCoordinates(radius, angle, index, cx, cy)
+			let { x, y } = this.calculateGroupCoordinates(groupRadius, angle, index, cx, cy, offset)
 			circle.arc(x, y, segmentRadius, 0, 2 * Math.PI)
 			ctx.fill(circle)
 			
 			return {
 				circle,
-				radius,
+				radius: groupRadius,
 				x: cx,
 				y: cy,
 				include: segment.include
@@ -202,22 +212,31 @@ export class VennDiagramGenerator {
 		return circle
 	}
 
-	private drawRectangle(x: number, y: number, size: number, index: number, color: string = 'black'): Path2D {
+	private drawGroupRectangle(x: number, y: number, size: number, index: number, color: string = 'black', and: boolean = false): Path2D {
+		const rectangle = this.drawRectangle(x, y, size, color)
+		this.drawGroupName(x, y, index, and)
+		return rectangle
+	}
+
+	private drawRectangle(x: number, y: number, size: number, stroke: string = 'black', fill?: string): Path2D {
 		const ctx = this.ctx as CanvasRenderingContext2D
 		const rectangle = new Path2D()
 		rectangle.rect(x, y, size, size)
 		ctx.beginPath()
-		ctx.strokeStyle = color
+		ctx.strokeStyle = stroke
 		ctx.stroke(rectangle)
+		if(fill) {
+			ctx.fillStyle = fill
+			ctx.fill(rectangle)
+		}
 		ctx.closePath()
-		this.drawGroupName(x, y, index)
 		return rectangle
 	}
 
-	private drawGroupName(x: number, y: number, index: number): void {
+	private drawGroupName(x: number, y: number, index: number, and: boolean): void {
 		const ctx = this.ctx as CanvasRenderingContext2D
 		ctx.font = '0.75rem Arial'
 		ctx.fillStyle = 'black'
-		ctx.fillText(`Group ${index}`, x + 16, y + 16)
+		ctx.fillText(`Group ${index}${and? ' (and)': ''}`, x + 16, y + 16)
 	}
 }
